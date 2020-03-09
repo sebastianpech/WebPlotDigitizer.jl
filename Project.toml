@@ -1,0 +1,13 @@
+name = "WebPlotDigitizer"
+uuid = "da3cbbc5-890b-4dc5-8ebc-05b162170886"
+authors = ["Sebastian Pech <sebastian.pech@me.com>"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
