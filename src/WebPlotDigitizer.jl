@@ -83,8 +83,9 @@ const load_json = load_from_json
 
 function show(io::IO,wpd::WPDProject)
     axes = keys(wpd.axes)
-    println(io,"WebPlotDigitizer:")
+    print(io,"WebPlotDigitizer:")
     for axis in keys(wpd.axes)
+        println(io)
         print(io," $axis ($(getaxistype(wpd[axis])))")
         for dataset in keys(wpd[axis].data)
             println(io)
