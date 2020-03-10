@@ -48,9 +48,17 @@ function load_from_json(path,original_path=path)
     wpd
 end
 
-function isWPDProject(path)
+function isWPDProject(path,name)
     content = getfield.(Tar.list(path),:path)
-    "wpd_project/info.json" in content
+    "$name/info.json" in content
+end
+
+function getWPDProjectName(path)
+    content = filter(Tar.list(path)) do f
+        f.type == :directory
+    end
+    length(content) != 1 && error("Can't retrive project name. There are multiple folders at toplevel, a WebPlotDigitizer project only has one.")
+    return dirname(content[1].path)
 end
 
 function getWPDProjectFile(wpd_folder)
@@ -59,11 +67,12 @@ function getWPDProjectFile(wpd_folder)
 end
 
 function load_from_tar(path)
-    isWPDProject(path) || error("Archive in '$path' is not a WebPlotDigitizer project.")
+    name = getWPDProjectName(path)
+    isWPDProject(path,name) || error("Tar at '$path' is not a WebPlotDigitizer project.")
     tmp_dir = Tar.extract(path)
-    wpd_folder = joinpath(tmp_dir, "wpd_project")
+    wpd_folder = joinpath(tmp_dir, name)
     wpd_file_name = getWPDProjectFile(wpd_folder)
-    wpd_file = joinpath(tmp_dir, "wpd_project",wpd_file_name)
+    wpd_file = joinpath(tmp_dir, name, wpd_file_name)
     wpd = load_from_json(wpd_file,path)
     rm(tmp_dir,recursive=true)
     return wpd
