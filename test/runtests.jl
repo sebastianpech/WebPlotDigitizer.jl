@@ -23,6 +23,16 @@ datadir(args...) = testdir("data",args...)
         @test A[2:3,2] == _A[2:3,:Y]
         @test A[:,2] == _A[:Y]
         @test_throws ErrorException _A[:Z]
+        A = WebPlotDigitizer.Dataset{(:X,:Y)}([1 2
+            2 3
+            0 2])
+        sortby!(A,:X)
+        @test A == [0 2
+                    1 2
+                    2 3]
+        @test sortby(A,:Y,rev=true) == [2 3
+                    0 2
+                    1 2]
     end
     @testset "default.tar" begin
         wpd = WebPlotDigitizer.load_project(datadir("default.tar"))

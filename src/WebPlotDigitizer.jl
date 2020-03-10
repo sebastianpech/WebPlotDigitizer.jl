@@ -4,6 +4,7 @@ using JSON
 using DataStructures
 using Tar
 
+export sortby, sortby!
 import Base: getindex, show, size, axes, to_index
 
 struct Dataset{L,T,N} <: AbstractArray{T,N}
@@ -30,6 +31,9 @@ axes(ds::Dataset) = axes(ds.data)
 to_index(ds::Dataset,col::Symbol) = to_index(ds,Val(col))
 getindex(ds::Dataset, I...) = ds.data[to_indices(ds, I)...]
 getindex(ds::Dataset, col::Symbol) = ds.data[:,to_index(ds, col)]
+
+setindex!(ds::Dataset{L,T}, val::T, I...) where{L,T} = ds.data[to_indices(ds, I)...] = val
+setindex!(ds::Dataset{L,T}, val::T, col::Symbol) where{L,T} = ds.data[:,to_index(ds, col)] = val
 
 struct Axis{L,T,N}
     isLogX::Bool
@@ -115,6 +119,16 @@ function show(io::IO,wpd::WPDProject)
             print(io,"  $dataset")
         end
     end
+end
+
+function sortby(ds::T,by::Symbol;rev::Bool=false) where T <: Dataset
+    idx = to_index(ds,by)
+    return T(sortslices(ds,by=x->x[idx],dims=1,rev=rev))
+end
+
+function sortby!(ds::T,by::Symbol;rev::Bool=false) where T <: Dataset
+    idx = to_index(ds,by)
+    ds.data .= sortslices(ds,by=x->x[idx],dims=1,rev=rev)
 end
 
 end
