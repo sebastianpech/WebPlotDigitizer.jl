@@ -127,8 +127,14 @@ function sortby(ds::T,by::Symbol;rev::Bool=false) where T <: Dataset
 end
 
 function sortby!(ds::T,by::Symbol;rev::Bool=false) where T <: Dataset
-    idx = to_index(ds,by)
-    ds.data .= sortslices(ds,by=x->x[idx],dims=1,rev=rev)
+    sorted = sortby(ds,by,rev=rev)
+    ds.data .= sorted.data
+end
+
+function sortby!(ax::Axis, by::Symbol; rev::Bool=false)
+    for ds in ax.data
+        sortby!(ds[2], by, rev=rev)
+    end
 end
 
 end
