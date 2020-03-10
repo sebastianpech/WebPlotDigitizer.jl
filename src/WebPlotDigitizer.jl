@@ -57,13 +57,15 @@ getaxistype(::Axis{(:X, :Y)}) = :XYAxes
 to_index(::Dataset{(:X,:Y)},::Val{:X}) = 1
 to_index(::Dataset{(:X,:Y)},::Val{:Y}) = 2
 
+parse_import_value(val::Number) = float(val)
+
 function load_from_json(path,original_path=path)
     data = JSON.parse(read(path,String))
     return WPDProject(OrderedDict([
         ax["name"] => Axis(ax["isLogX"],ax["isLogY"],
             OrderedDict([d["name"] => Dataset{getaxislabels(ax["type"])}(
                 mapfoldr(vcat,d["data"]) do p
-                    transpose([_p for _p in p["value"]]) # Convert from any to smalles type union
+                    transpose(parse_import_value.(p["value"])) # Convert to supported types
                 end)
             for d in data["datasetColl"] if d["axesName"] == ax["name"]]))
     for ax in data["axesColl"]]),original_path)
