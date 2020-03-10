@@ -15,6 +15,15 @@ datadir(args...) = testdir("data",args...)
         @test collect(keys(newname.axes["XY"].data)) == ["Dataset 1", "Dataset 2", "Dataset 3"]
         @test collect(keys(newname.axes["XY 2"].data)) == ["Dataset 4"]
     end
+    @testset "Custom Array" begin
+        A = rand(10,2)
+        _A = WebPlotDigitizer.Dataset{(:X,:Y)}(A)
+        @test A[:,1] == _A[:,:X]
+        @test A[:,2] == _A[:,:Y]
+        @test A[2:3,2] == _A[2:3,:Y]
+        @test A[:,2] == _A[:Y]
+        @test_throws ErrorException _A[:Z]
+    end
     @testset "default.tar" begin
         wpd = WebPlotDigitizer.load_project(datadir("default.tar"))
         @test WebPlotDigitizer.getaxistype(wpd["XY"]) == :XYAxes
@@ -23,6 +32,3 @@ datadir(args...) = testdir("data",args...)
         wpd
     end
 end
-
-
-

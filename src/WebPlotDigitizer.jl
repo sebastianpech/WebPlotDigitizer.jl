@@ -1,16 +1,40 @@
 module WebPlotDigitizer
 
 using JSON
-using NamedDims
 using DataStructures
 using Tar
 
-import Base: getindex, show
+import Base: getindex, show, size, axes, to_index
+
+struct Dataset{L,T,N} <: AbstractArray{T,N}
+    data::Array{T,N}
+end
+
+function Dataset{L}(orig::Array{T,N}) where {T,N,L}
+    if N > 2
+        throw(ArgumentError(
+            "Datasets only support 1 and 2 dimensional arrays. Got: $N"
+        ))
+    end
+    # This is from Nameddims.jl
+    if !(L isa NTuple{N, Symbol})
+        throw(ArgumentError(
+            "A $N dimensional array, needs a $N-tuple of dimension names. Got: $L"
+        ))
+    end
+    return Dataset{L, T, N}(orig)
+end
+
+size(ds::Dataset) = size(ds.data)
+axes(ds::Dataset) = axes(ds.data)
+to_index(ds::Dataset,col::Symbol) = to_index(ds,Val(col))
+getindex(ds::Dataset, I...) = ds.data[to_indices(ds, I)...]
+getindex(ds::Dataset, col::Symbol) = ds.data[:,to_index(ds, col)]
 
 struct Axis{L,T,N}
     isLogX::Bool
     isLogY::Bool
-    data::OrderedDict{String,<:NamedDimsArray{L, T, N}}
+    data::OrderedDict{String,Dataset{L, T, N}}
 end
 
 getindex(ax::Axis,name::String) = ax.data[name]
@@ -22,28 +46,27 @@ end
 
 getindex(wpd::WPDProject,name::String) = wpd.axes[name]
 
-AxisType(t::String) = AxisType(Val(Symbol(t)))
-AxisType(::Val{T}) where T = error("Axis type '$T' not defined for import.")
-AxisType(::Val{:XYAxes}) = NamedDimsArray{(:X, :Y), Float64, 2, Array{Float64, 2}} 
+getaxislabels(t::String) = getaxislabels(Val(Symbol(t)))
+getaxislabels(::Val{T}) where T = error("Axis type '$T' not defined for label generation.")
+to_index(::Dataset{L},::Val{T}) where {L,T} = error("Dataset only supports columns $L. Got $T")
+
+# Axis types
+# XYAxes
+getaxislabels(::Val{:XYAxes}) = (:X, :Y)
 getaxistype(::Axis{(:X, :Y)}) = :XYAxes
-
-axis_from_JSON(ax::Dict{String}) =  Axis(ax["isLogX"],ax["isLogY"],OrderedDict{String,AxisType(ax["type"])}())
-axes_from_JSON(axs::Vector) = OrderedDict(map(axs) do ax
-    ax["name"] => axis_from_JSON(ax)
-end)
-
-add_dataset_from_JSON!(wpd::WPDProject, j::Dict{String}) = add_dataset_from_JSON!(wpd[j["axesName"]],j)
-add_dataset_from_JSON!(ax::Axis{L}, j::Dict{String}) where L = ax.data[j["name"]] = NamedDimsArray{L}(mapfoldr(vcat,j["data"]) do p
-    transpose(convert(Vector{Float64},p["value"]))
-end)
+to_index(::Dataset{(:X,:Y)},::Val{:X}) = 1
+to_index(::Dataset{(:X,:Y)},::Val{:Y}) = 2
 
 function load_from_json(path,original_path=path)
     data = JSON.parse(read(path,String))
-    wpd = WPDProject(axes_from_JSON(data["axesColl"]),original_path)
-    for jdataset in data["datasetColl"]
-        add_dataset_from_JSON!(wpd, jdataset)
-    end
-    wpd
+    return WPDProject(OrderedDict([
+        ax["name"] => Axis(ax["isLogX"],ax["isLogY"],
+            OrderedDict([d["name"] => Dataset{getaxislabels(ax["type"])}(
+                mapfoldr(vcat,d["data"]) do p
+                    transpose([_p for _p in p["value"]]) # Convert from any to smalles type union
+                end)
+            for d in data["datasetColl"] if d["axesName"] == ax["name"]]))
+    for ax in data["axesColl"]]),original_path)
 end
 
 function isWPDProject(path,name)
@@ -91,6 +114,5 @@ function show(io::IO,wpd::WPDProject)
         end
     end
 end
-
 
 end
