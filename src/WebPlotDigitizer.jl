@@ -50,7 +50,7 @@ end
 
 function isWPDProject(path)
     content = getfield.(Tar.list(path),:path)
-    joinpath("wpd_project","info.json") in content
+    "wpd_project/info.json" in content
 end
 
 function getWPDProjectFile(wpd_folder)
