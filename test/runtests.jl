@@ -1,8 +1,6 @@
 using WebPlotDigitizer
 using Test
 
-using Plot
-
 testdir(args...) = abspath(joinpath(dirname(pathof(WebPlotDigitizer)),"..","test",args...))
 datadir(args...) = testdir("data",args...)
 
