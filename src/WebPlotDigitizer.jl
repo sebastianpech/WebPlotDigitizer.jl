@@ -7,8 +7,6 @@ using Tar
 
 import Base: getindex, show
 
-export load_project, load_json
-
 struct Axis{L,T,N}
     isLogX::Bool
     isLogY::Bool
