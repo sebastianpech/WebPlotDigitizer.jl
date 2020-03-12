@@ -15,30 +15,17 @@ datadir(args...) = testdir("data",args...)
         @test collect(keys(newname.axes["XY"].data)) == ["Dataset 1", "Dataset 2", "Dataset 3"]
         @test collect(keys(newname.axes["XY 2"].data)) == ["Dataset 4"]
     end
-    @testset "Custom Array" begin
-        A = rand(10,2)
-        _A = WebPlotDigitizer.Dataset{(:X,:Y)}(A)
-        @test A[:,1] == _A[:,:X]
-        @test A[:,2] == _A[:,:Y]
-        @test A[2:3,2] == _A[2:3,:Y]
-        @test A[:,2] == _A[:Y]
-        @test_throws ErrorException _A[:Z]
-        A = WebPlotDigitizer.Dataset{(:X,:Y)}([1 2
-            2 3
-            0 2])
-        sortby!(A,:X)
-        @test A == [0 2
-                    1 2
-                    2 3]
-        @test sortby(A,:Y,rev=true) == [2 3
-                    0 2
-                    1 2]
-    end
     @testset "default.tar" begin
         wpd = WebPlotDigitizer.load_project(datadir("default.tar"))
-        @test WebPlotDigitizer.getaxistype(wpd["XY"]) == :XYAxes
+        @test wpd["XY"] isa WebPlotDigitizer.XYAxes
         @test wpd["XY"].isLogX == false
         @test wpd["XY"].isLogY == false
         wpd
+    end
+    @testset "Sorting" begin
+        wpd = WebPlotDigitizer.load_project(datadir("default.tar"))
+        @test issorted(wpd["XY"]["Dataset 2"][:,2]) == false
+        sortby!(wpd["XY"],2)
+        @test issorted(wpd["XY"]["Dataset 2"][:,2])
     end
 end
