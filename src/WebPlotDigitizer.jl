@@ -17,6 +17,19 @@ struct XYAxes{T} <: Axes{T}
     data::OrderedDict{String,<:Matrix{T}}
 end
 
+struct BarAxes{T} <: Axes{T}
+    isRotated::Bool
+    isLog::Bool
+    data::OrderedDict{String,<:Matrix{T}}
+end
+
+struct PolarAxes{T} <: Axes{T}
+    isClockwise::Bool
+    isLog::Bool
+    isDegrees::Bool
+    data::OrderedDict{String,<:Matrix{T}}
+end
+
 Axis(ax::Dict,data::Dict) = Axis(Val(Symbol(ax["type"])),ax,data)
 Axis(::Val{T},args...) where T = error("Axis types XYAxes known. Got: $T")
 
@@ -25,6 +38,19 @@ function Axis(::Val{:XYAxes},ax,data)
         OrderedDict([d["name"] => convert_values_entry(d["data"])
                 for d in data["datasetColl"] if d["axesName"] == ax["name"]]))
 end
+
+function Axis(::Val{:BarAxes},ax,data)
+    BarAxes(ax["isRotated"],ax["isLog"],
+        OrderedDict([d["name"] => convert_values_entry(d["data"])
+                for d in data["datasetColl"] if d["axesName"] == ax["name"]]))
+end
+
+function Axis(::Val{:PolarAxes},ax,data)
+    PolarAxes(ax["isClockwise"],ax["isLog"],ax["isDegrees"],
+        OrderedDict([d["name"] => convert_values_entry(d["data"])
+                for d in data["datasetColl"] if d["axesName"] == ax["name"]]))
+end
+
 
 parse_import_value(val::Number) = float(val)
 
@@ -81,7 +107,7 @@ end
 const load_project = load_from_tar
 const load_json = load_from_json
 
-getaxisdescription(::XYAxes{T}) where T = "XYAxes{$T}"
+getaxisdescription(::T) where T = split("$T",".")[end]
 
 function show(io::IO,wpd::WPDProject)
     axes = keys(wpd.axes)
