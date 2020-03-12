@@ -17,10 +17,22 @@ struct XYAxes{T} <: Axes{T}
     data::OrderedDict{String,<:Matrix{T}}
 end
 
-Axis(t::String) = Axis(Val(Symbol(t)))
-Axis(::Val{T}) where T = error("Axis types XYAxes known. Got: $T")
-Axis(::Val{:XYAxes}) = XYAxes
+Axis(ax::Dict,data::Dict) = Axis(Val(Symbol(ax["type"])),ax,data)
+Axis(::Val{T},args...) where T = error("Axis types XYAxes known. Got: $T")
 
+function Axis(::Val{:XYAxes},ax,data)
+    XYAxes(ax["isLogX"],ax["isLogY"],
+        OrderedDict([d["name"] => convert_values_entry(d["data"])
+                for d in data["datasetColl"] if d["axesName"] == ax["name"]]))
+end
+
+parse_import_value(val::Number) = float(val)
+
+# Convert to supported types.
+# Always store a 2D array.
+convert_values_entry(values) = mapfoldr(vcat,values) do p
+    transpose(parse_import_value.(p["value"]))
+end
 
 struct WPDProject
     axes::OrderedDict{String,Axes}
@@ -28,18 +40,11 @@ end
 
 getindex(wpd::WPDProject,name::String) = wpd.axes[name]
 
-parse_import_value(val::Number) = float(val)
 
 function load_from_json(path)
     data = JSON.parse(read(path,String))
     return WPDProject(OrderedDict([
-        ax["name"] => Axis(ax["type"])(ax["isLogX"],ax["isLogY"],
-            OrderedDict([d["name"] => mapfoldr(vcat,d["data"]) do p
-                    # Convert to supported types.
-                    # Always store a 2D array.
-                    transpose(parse_import_value.(p["value"]))
-                end
-            for d in data["datasetColl"] if d["axesName"] == ax["name"]]))
+        ax["name"] => Axis(ax,data)
     for ax in data["axesColl"]]))
 end
 
