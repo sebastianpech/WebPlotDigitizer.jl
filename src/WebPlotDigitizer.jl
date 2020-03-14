@@ -3,6 +3,7 @@ module WebPlotDigitizer
 using JSON
 using DataStructures
 using Tar
+using Dates
 
 export sortby, sortby!
 import Base: getindex, show, size, axes, to_index
@@ -35,29 +36,52 @@ Axis(::Val{T},args...) where T = error("Axis types XYAxes known. Got: $T")
 
 function Axis(::Val{:XYAxes},ax,data)
     XYAxes(ax["isLogX"],ax["isLogY"],
-        OrderedDict([d["name"] => convert_values_entry(d["data"])
+        OrderedDict([d["name"] => convert_values_entry(d["data"],ax)
                 for d in data["datasetColl"] if d["axesName"] == ax["name"]]))
 end
 
 function Axis(::Val{:BarAxes},ax,data)
     BarAxes(ax["isRotated"],ax["isLog"],
-        OrderedDict([d["name"] => convert_values_entry(d["data"])
+        OrderedDict([d["name"] => convert_values_entry(d["data"],ax)
                 for d in data["datasetColl"] if d["axesName"] == ax["name"]]))
 end
 
 function Axis(::Val{:PolarAxes},ax,data)
     PolarAxes(ax["isClockwise"],ax["isLog"],ax["isDegrees"],
-        OrderedDict([d["name"] => convert_values_entry(d["data"])
+        OrderedDict([d["name"] => convert_values_entry(d["data"],ax)
                 for d in data["datasetColl"] if d["axesName"] == ax["name"]]))
 end
 
+const re_full_datetime = r"^\d{4}\/\d{1,2}\/\d{1,2} \d{1,2}:\d{1,2}$"
+const re_full_date     = r"^\d{4}\/\d{1,2}\/\d{1,2}$"
+const re_year_month    = r"^\d{4}\/\d{1,2}$"
+const re_time          = r"^\d{1,2}:\d{1,2}$"
+const re_datetime = [re_full_datetime, re_full_date, re_year_month, re_time]
 
-parse_import_value(val::Number) = float(val)
+function parse_import_value(val::Number, dx::String)
+    if any(x->occursin(x,dx), re_datetime)
+        if occursin(re_time,dx) # time only
+            return Time(Dates.unix2datetime(val/1000))
+        elseif !(occursin(":",dx))
+            return Date(round(Dates.unix2datetime(val/1000),Dates.Day))
+        end
+        return DateTime(Dates.unix2datetime(val/1000))
+    elseif tryparse(Float64,dx) != nothing
+        return float(val)
+    end
+    error("Expected to parse a date or time value. Got:$dx")
+end
+
+parse_import_value(val::Number, dx::Number) = float(val)
+
+get
 
 # Convert to supported types.
 # Always store a 2D array.
-convert_values_entry(values) = mapfoldr(vcat,values) do p
-    transpose(parse_import_value.(p["value"]))
+const column_names = ("dx", "dy", "dz")
+convert_values_entry(values,ax) = mapfoldr(vcat,values) do p
+    col_specification = getindex.(Ref(ax["calibrationPoints"][1]),column_names)[1:length(p["value"])]
+    permutedims(parse_import_value.(p["value"], col_specification))
 end
 
 struct WPDProject
@@ -65,7 +89,6 @@ struct WPDProject
 end
 
 getindex(wpd::WPDProject,name::String) = wpd.axes[name]
-
 
 function load_from_json(path)
     data = JSON.parse(read(path,String))
