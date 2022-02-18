@@ -74,8 +74,6 @@ end
 
 parse_import_value(val::Number, dx::Number) = float(val)
 
-get
-
 # Convert to supported types.
 # Always store a 2D array.
 const column_names = ("dx", "dy", "dz")
